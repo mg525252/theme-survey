@@ -101,7 +101,7 @@
 
   <div class="card" id="card"></div>
 
-  <p class="hint">Tip: leave a theme at 0 if you'd put no points there. <span style="opacity:.5">(v3 · auto-email)</span></p>
+  <p class="hint">Tip: leave a theme at 0 if you'd put no points there. <span style="opacity:.5">(v4 · Google Sheet + email)</span></p>
 </div>
 
 <div class="bar">
@@ -176,8 +176,8 @@
 
   inputs.forEach(function(el) { el.addEventListener("input", update); });
 
-  // ---- Submit: auto-emails maheedhar@01a.com via FormSubmit (no account/key) ----
-  var ENDPOINT = "https://formsubmit.co/ajax/" + SEND_TO;
+  // ---- Submit: posts to the Google Apps Script backend (saves to Sheet + emails) ----
+  var ENDPOINT = "https://script.google.com/macros/s/AKfycbz1rYhG3fn5oq1TikS3UYKeDHnNeCsUoJIN5OesIUXnOzHtoJzpimf4oyHoOnAFFdvuWw/exec";
   var overlay = document.getElementById("overlay");
   var modalBody = document.getElementById("modalBody");
   var lastBody = "", lastSubject = "";
@@ -208,13 +208,8 @@
     }
     errEl.textContent = "";
 
-    // Build the payload: one field per theme that got points, plus name + total.
-    var fields = {
-      "Name": who,
-      "_subject": "Theme allocation – " + who,
-      "_template": "table",
-      "_captcha": "false"
-    };
+    // Build the payload: name + one field per theme that got points.
+    var fields = { "Name": who };
     var lines = [];
     inputs.forEach(function(el) {
       var v = parseInt(el.value, 10) || 0;
@@ -224,7 +219,6 @@
         lines.push(theme + ": " + v);
       }
     });
-    fields["TOTAL"] = "50";
 
     lastSubject = "Theme allocation – " + who;
     lastBody = "Name: " + who + "\n\nAllocation (50 points):\n\n" + lines.join("\n") + "\n";
@@ -232,23 +226,22 @@
     submitBtn.disabled = true;
     showModal('<h2>Sending…</h2><p>Submitting your allocation.</p>');
 
+    // Apps Script web apps don't return CORS headers, so we POST as a "simple"
+    // request (text/plain, no preflight) in no-cors mode — the data still reaches
+    // the backend and is saved/emailed; we just can't read the opaque response.
     fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(fields)
     })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
+    .then(function() {
       submitBtn.disabled = false;
-      if (data && (data.success === "true" || data.success === true)) {
-        showModal(
-          '<h2>✅ Sent — thank you, ' + escapeHtml(who) + '!</h2>' +
-          '<p>Your allocation has been emailed to Maheedhar. You can close this tab.</p>' +
-          '<div class="modal-actions"><button id="closeBtn">Done</button></div>'
-        );
-      } else {
-        showFallback();
-      }
+      showModal(
+        '<h2>✅ Sent — thank you, ' + escapeHtml(who) + '!</h2>' +
+        '<p>Your allocation has been recorded and emailed to Maheedhar. You can close this tab.</p>' +
+        '<div class="modal-actions"><button id="closeBtn">Done</button></div>'
+      );
       wireClose();
     })
     .catch(function() {
