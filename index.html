@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01A Theme Allocation Survey</title>
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --good: #16a34a;
+    --bad: #dc2626;
+    --bg: #f7f8fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px 16px 96px;
+    line-height: 1.45;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+  .name-row {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 20px;
+  }
+  .name-row label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 6px; }
+  .name-row input {
+    width: 100%; padding: 10px 12px; font-size: 15px;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden;
+  }
+  .item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line);
+  }
+  .item:last-child { border-bottom: none; }
+  .item .label { flex: 1; font-size: 14.5px; }
+  .item input[type="number"] {
+    width: 72px; padding: 8px 10px; font-size: 15px; text-align: center;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  .item input[type="number"]:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: #fff; border-top: 1px solid var(--line);
+    padding: 14px 16px; display: flex; align-items: center; gap: 16px;
+    justify-content: center; box-shadow: 0 -4px 16px rgba(0,0,0,.04);
+  }
+  .bar-inner { max-width: 720px; width: 100%; display: flex; align-items: center; gap: 16px; }
+  .counter { font-size: 15px; font-weight: 600; flex: 1; }
+  .counter .num { font-size: 20px; }
+  .counter.good .num { color: var(--good); }
+  .counter.bad .num { color: var(--bad); }
+  button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 12px 20px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Theme Allocation Survey</h1>
+  <p class="sub">You have <strong>50 points</strong>. Allocate them across the themes below however you like — concentrate them or spread them out. The running total must equal exactly 50 before you can submit.</p>
+
+  <div class="name-row">
+    <label for="who">Your name</label>
+    <input id="who" type="text" placeholder="e.g. Adam" autocomplete="off">
+  </div>
+
+  <div class="card" id="card"></div>
+
+  <p class="hint">Tip: leave a theme blank or at 0 if you'd put no points there.</p>
+</div>
+
+<div class="bar">
+  <div class="bar-inner">
+    <div class="counter" id="counter"><span class="num">0</span> / 50 allocated &middot; <span id="remaining">50</span> remaining</div>
+    <button id="submit" disabled>Submit (email results)</button>
+  </div>
+</div>
+
+<script>
+  var THEMES = [
+    "AI for Physical Infrastructure (Construction, Architecture)",
+    "AI Enterprise Implementations + Deployment Services",
+    "AI Software for Government",
+    "Lifescience AI",
+    "Robotics Software / Hardware",
+    "Power",
+    "Grid Modernization",
+    "Next Gen EDA Tools",
+    "American Open Source Models",
+    "Future of Agentic Infrastructure / Deployments",
+    "AI Code Generation / Testing",
+    "Networking + Connectivity",
+    "Consumer Social",
+    "Gaming",
+    "Developer Tooling – Data, Storage & Vector Databases",
+    "AI in Healthcare"
+  ];
+
+  var SEND_TO = "maheedhar@01a.com";
+  var card = document.getElementById("card");
+
+  THEMES.forEach(function(t, i) {
+    var row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML =
+      '<div class="label">' + t + '</div>' +
+      '<input type="number" min="0" max="50" step="1" value="0" data-i="' + i + '">';
+    card.appendChild(row);
+  });
+
+  var inputs = Array.prototype.slice.call(card.querySelectorAll("input"));
+  var counterEl = document.getElementById("counter");
+  var numEl = counterEl.querySelector(".num");
+  var remainingEl = document.getElementById("remaining");
+  var submitBtn = document.getElementById("submit");
+
+  function total() {
+    return inputs.reduce(function(sum, el) {
+      var v = parseInt(el.value, 10);
+      return sum + (isNaN(v) || v < 0 ? 0 : v);
+    }, 0);
+  }
+
+  function update() {
+    var t = total();
+    numEl.textContent = t;
+    remainingEl.textContent = (50 - t);
+    counterEl.classList.toggle("good", t === 50);
+    counterEl.classList.toggle("bad", t > 50);
+    submitBtn.disabled = (t !== 50);
+  }
+
+  inputs.forEach(function(el) { el.addEventListener("input", update); });
+
+  submitBtn.addEventListener("click", function() {
+    var who = (document.getElementById("who").value || "").trim();
+    if (!who) { alert("Please enter your name at the top."); return; }
+    if (total() !== 50) { alert("Your points must add up to exactly 50."); return; }
+
+    var lines = [];
+    inputs.forEach(function(el) {
+      var v = parseInt(el.value, 10) || 0;
+      if (v > 0) lines.push(THEMES[el.getAttribute("data-i")] + ": " + v);
+    });
+
+    var subject = "Theme allocation – " + who;
+    var body = "Name: " + who + "\n\nAllocation (50 points):\n\n" + lines.join("\n") + "\n";
+    window.location.href = "mailto:" + SEND_TO +
+      "?subject=" + encodeURIComponent(subject) +
+      "&body=" + encodeURIComponent(body);
+  });
+
+  update();
+</script>
+</body>
+</html>
