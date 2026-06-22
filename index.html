@@ -67,7 +67,7 @@
   }
   button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
   .hint { font-size: 13px; color: var(--muted); margin-top: 10px; }
-  .err { color: var(--bad); font-size: 14px; font-weight: 600; margin-top: 10px; min-height: 18px; }
+  .err { color: var(--bad); font-size: 13px; font-weight: 600; margin-top: 3px; min-height: 16px; }
 
   /* Results panel */
   .overlay {
@@ -101,13 +101,15 @@
 
   <div class="card" id="card"></div>
 
-  <p class="hint">Tip: leave a theme at 0 if you'd put no points there.</p>
-  <div class="err" id="err"></div>
+  <p class="hint">Tip: leave a theme at 0 if you'd put no points there. <span style="opacity:.5">(v2)</span></p>
 </div>
 
 <div class="bar">
   <div class="bar-inner">
-    <div class="counter" id="counter"><span class="num">0</span> / 50 allocated &middot; <span id="remaining">50</span> remaining</div>
+    <div style="flex:1">
+      <div class="counter" id="counter"><span class="num">0</span> / 50 allocated &middot; <span id="remaining">50</span> remaining</div>
+      <div class="err" id="err"></div>
+    </div>
     <button id="submit">Submit</button>
   </div>
 </div>
