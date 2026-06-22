@@ -101,7 +101,7 @@
 
   <div class="card" id="card"></div>
 
-  <p class="hint">Tip: leave a theme at 0 if you'd put no points there. <span style="opacity:.5">(v2)</span></p>
+  <p class="hint">Tip: leave a theme at 0 if you'd put no points there. <span style="opacity:.5">(v3 · auto-email)</span></p>
 </div>
 
 <div class="bar">
@@ -114,19 +114,9 @@
   </div>
 </div>
 
-<!-- Results panel -->
+<!-- Status panel -->
 <div class="overlay" id="overlay">
-  <div class="modal">
-    <h2>✅ Your allocation is ready</h2>
-    <p>Copy the text below and paste it into an email or message to <strong>maheedhar@01a.com</strong> — or click <strong>Open email</strong> to launch your mail app pre-filled.</p>
-    <textarea id="result" readonly></textarea>
-    <div class="modal-actions">
-      <button id="copyBtn">Copy results</button>
-      <button id="emailBtn" class="secondary">Open email</button>
-      <button id="closeBtn" class="secondary">Close</button>
-      <span class="copied" id="copied" style="display:none">Copied!</span>
-    </div>
-  </div>
+  <div class="modal" id="modalBody"></div>
 </div>
 
 <script>
@@ -186,10 +176,21 @@
 
   inputs.forEach(function(el) { el.addEventListener("input", update); });
 
-  // ---- Submit always responds with clear feedback ----
+  // ---- Submit: auto-emails maheedhar@01a.com via FormSubmit (no account/key) ----
+  var ENDPOINT = "https://formsubmit.co/ajax/" + SEND_TO;
   var overlay = document.getElementById("overlay");
-  var resultBox = document.getElementById("result");
+  var modalBody = document.getElementById("modalBody");
   var lastBody = "", lastSubject = "";
+
+  function showModal(html) {
+    modalBody.innerHTML = html;
+    overlay.classList.add("show");
+  }
+  function closeModal() { overlay.classList.remove("show"); }
+
+  overlay.addEventListener("click", function(e) {
+    if (e.target === overlay) closeModal();
+  });
 
   submitBtn.addEventListener("click", function() {
     var who = (document.getElementById("who").value || "").trim();
@@ -207,44 +208,96 @@
     }
     errEl.textContent = "";
 
+    // Build the payload: one field per theme that got points, plus name + total.
+    var fields = {
+      "Name": who,
+      "_subject": "Theme allocation – " + who,
+      "_template": "table",
+      "_captcha": "false"
+    };
     var lines = [];
     inputs.forEach(function(el) {
       var v = parseInt(el.value, 10) || 0;
-      if (v > 0) lines.push(THEMES[el.getAttribute("data-i")] + ": " + v);
+      if (v > 0) {
+        var theme = THEMES[el.getAttribute("data-i")];
+        fields[theme] = String(v);
+        lines.push(theme + ": " + v);
+      }
     });
+    fields["TOTAL"] = "50";
 
     lastSubject = "Theme allocation – " + who;
     lastBody = "Name: " + who + "\n\nAllocation (50 points):\n\n" + lines.join("\n") + "\n";
-    resultBox.value = lastBody;
-    overlay.classList.add("show");
+
+    submitBtn.disabled = true;
+    showModal('<h2>Sending…</h2><p>Submitting your allocation.</p>');
+
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(fields)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      submitBtn.disabled = false;
+      if (data && (data.success === "true" || data.success === true)) {
+        showModal(
+          '<h2>✅ Sent — thank you, ' + escapeHtml(who) + '!</h2>' +
+          '<p>Your allocation has been emailed to Maheedhar. You can close this tab.</p>' +
+          '<div class="modal-actions"><button id="closeBtn">Done</button></div>'
+        );
+      } else {
+        showFallback();
+      }
+      wireClose();
+    })
+    .catch(function() {
+      submitBtn.disabled = false;
+      showFallback();
+      wireClose();
+    });
   });
 
-  // Copy
-  document.getElementById("copyBtn").addEventListener("click", function() {
-    resultBox.select();
-    var ok = false;
-    try { ok = document.execCommand("copy"); } catch (e) {}
-    if (navigator.clipboard) { navigator.clipboard.writeText(lastBody).catch(function(){}); ok = true; }
-    if (ok) {
+  function showFallback() {
+    showModal(
+      '<h2>Couldn\'t auto-send</h2>' +
+      '<p>No problem — copy the text below and send it to <strong>' + SEND_TO + '</strong>, ' +
+      'or click <strong>Open email</strong>.</p>' +
+      '<textarea id="result" readonly>' + escapeHtml(lastBody) + '</textarea>' +
+      '<div class="modal-actions">' +
+        '<button id="copyBtn">Copy results</button>' +
+        '<button id="emailBtn" class="secondary">Open email</button>' +
+        '<button id="closeBtn" class="secondary">Close</button>' +
+        '<span class="copied" id="copied" style="display:none">Copied!</span>' +
+      '</div>'
+    );
+    var copyBtn = document.getElementById("copyBtn");
+    if (copyBtn) copyBtn.addEventListener("click", function() {
+      var rb = document.getElementById("result");
+      rb.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      if (navigator.clipboard) navigator.clipboard.writeText(lastBody).catch(function(){});
       var c = document.getElementById("copied");
-      c.style.display = "inline";
-      setTimeout(function(){ c.style.display = "none"; }, 2000);
-    }
-  });
+      if (c) { c.style.display = "inline"; setTimeout(function(){ c.style.display = "none"; }, 2000); }
+    });
+    var emailBtn = document.getElementById("emailBtn");
+    if (emailBtn) emailBtn.addEventListener("click", function() {
+      window.location.href = "mailto:" + SEND_TO +
+        "?subject=" + encodeURIComponent(lastSubject) +
+        "&body=" + encodeURIComponent(lastBody);
+    });
+  }
 
-  // Open email (mailto fallback)
-  document.getElementById("emailBtn").addEventListener("click", function() {
-    window.location.href = "mailto:" + SEND_TO +
-      "?subject=" + encodeURIComponent(lastSubject) +
-      "&body=" + encodeURIComponent(lastBody);
-  });
+  function wireClose() {
+    var b = document.getElementById("closeBtn");
+    if (b) b.addEventListener("click", closeModal);
+  }
 
-  document.getElementById("closeBtn").addEventListener("click", function() {
-    overlay.classList.remove("show");
-  });
-  overlay.addEventListener("click", function(e) {
-    if (e.target === overlay) overlay.classList.remove("show");
-  });
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, function(c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
 
   update();
 </script>
